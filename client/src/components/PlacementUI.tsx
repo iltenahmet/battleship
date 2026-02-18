@@ -6,7 +6,7 @@ export default function PlacementUI() {
   const toggleOrientation = useGameStore((s) => s.toggleOrientation);
   const resetPlacement = useGameStore((s) => s.resetPlacement);
   const placedShips = useGameStore((s) => s.placedShips);
-  const setPhase = useGameStore((s) => s.setPhase);
+  const confirmFleet = useGameStore((s) => s.confirmFleet);
 
   const allPlaced = currentShipIndex >= SHIPS.length;
 
@@ -48,7 +48,7 @@ export default function PlacementUI() {
         {allPlaced && (
           <button
             className="px-4 py-2.5 text-sm bg-emerald-500/15 border border-emerald-500 text-emerald-400 rounded-md cursor-pointer transition-all hover:bg-emerald-500/30"
-            onClick={() => setPhase('firing')}
+            onClick={confirmFleet}
           >
             Confirm Fleet
           </button>

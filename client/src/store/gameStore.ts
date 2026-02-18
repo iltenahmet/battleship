@@ -25,7 +25,7 @@ export interface PlacedShip {
   orientation: Orientation;
 }
 
-export type Phase = 'menu' | 'placement' | 'waiting' | 'firing' | 'gameOver';
+export type Phase = 'menu' | 'lobby' | 'placement' | 'waiting' | 'firing' | 'gameOver';
 export type GameMode = 'ai' | 'multiplayer';
 
 interface GameState {
@@ -62,6 +62,7 @@ interface GameState {
   confirmFleet: () => void;
   fire: (row: number, col: number) => void;
   setNotification: (msg: string | null) => void;
+  joinGame: (code: string) => void;
 }
 
 function isValidPlacement(
@@ -150,7 +151,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     const createData = mode === 'ai' ? { mode, difficulty } as const : { mode } as const;
 
     socket.emit('create-game', createData, (resp: { gameId: string; playerId: string }) => {
-      set({ gameId: resp.gameId, playerId: resp.playerId, phase: 'placement' });
+      if (mode === 'ai') {
+        set({ gameId: resp.gameId, playerId: resp.playerId, phase: 'placement' });
+      } else {
+        // Multiplayer: go to lobby to show room code
+        set({ gameId: resp.gameId, playerId: resp.playerId, phase: 'lobby', notification: 'Waiting for opponent to join...' });
+      }
+    });
+  },
+
+  joinGame: (code: string) => {
+    if (!socket.connected) socket.connect();
+
+    socket.emit('join-game', { gameId: code.toUpperCase() }, (resp: { success: boolean; playerId?: string; error?: string }) => {
+      if (!resp.success) {
+        set({ notification: resp.error || 'Failed to join' });
+        return;
+      }
+      set({ gameId: code.toUpperCase(), playerId: resp.playerId!, phase: 'placement', notification: null });
     });
   },
 
@@ -220,6 +238,10 @@ socket.on('turn-change', (data: { currentTurn: string }) => {
     isMyTurn: myTurn,
     notification: myTurn ? 'Your turn — fire!' : "Opponent's turn",
   });
+});
+
+socket.on('opponent-joined', () => {
+  useGameStore.setState({ phase: 'placement', notification: 'Opponent joined! Place your fleet.' });
 });
 
 socket.on('game-over', (data: { winner: string }) => {

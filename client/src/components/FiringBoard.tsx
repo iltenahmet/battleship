@@ -20,27 +20,19 @@ function cellToWorld(row: number, col: number): [number, number, number] {
 }
 
 function GridLines() {
-  const lines = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const pts: number[] = [];
     for (let i = 0; i <= BOARD_SIZE; i++) {
-      pts.push(new THREE.Vector3(i * CELL_SIZE - HALF, 0.005, -HALF));
-      pts.push(new THREE.Vector3(i * CELL_SIZE - HALF, 0.005, HALF));
-      pts.push(new THREE.Vector3(-HALF, 0.005, i * CELL_SIZE - HALF));
-      pts.push(new THREE.Vector3(HALF, 0.005, i * CELL_SIZE - HALF));
+      pts.push(i * CELL_SIZE - HALF, 0.005, -HALF, i * CELL_SIZE - HALF, 0.005, HALF);
+      pts.push(-HALF, 0.005, i * CELL_SIZE - HALF, HALF, 0.005, i * CELL_SIZE - HALF);
     }
-    return pts;
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    return geo;
   }, []);
 
   return (
-    <lineSegments>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={lines.length}
-          array={new Float32Array(lines.flatMap((v) => [v.x, v.y, v.z]))}
-          itemSize={3}
-        />
-      </bufferGeometry>
+    <lineSegments geometry={geometry}>
       <lineBasicMaterial color="#1a5276" transparent opacity={0.6} />
     </lineSegments>
   );

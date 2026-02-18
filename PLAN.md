@@ -81,12 +81,41 @@ battleship/
 
 ### 3.3 AI (Single Player)
 - Player selects difficulty before starting a single-player game
-- **Easy — Random:** picks a random unchecked cell each turn
-- **Medium — Hunt + Target:** random shots until a hit, then probes adjacent cells, follows direction until miss, reverses
-- **Hard — Hunt + Target + Parity:** same as medium, but in hunt mode only targets checkerboard-pattern cells (halves search space)
-- **Expert — Probability Density:** for each unchecked cell, calculates how many remaining ship placements overlap it, fires at highest-probability cell
-- AI ships placed randomly with valid placement logic
+- AI ships placed randomly using the same valid-placement logic as human players
 - AI runs server-side (same validation as multiplayer, prevents client tampering)
+- All modes share a common pattern: **hunt mode** (searching for ships) and **target mode** (finishing off a ship after a hit). The modes differ in how they hunt and how aggressively they target.
+
+#### Easy — Pure Random
+- Maintains a list of all unfired cells
+- Each turn, picks one at random — no memory, no strategy
+- Average game length: ~95 shots (out of 100 cells)
+- Simulates a complete beginner
+
+#### Medium — Hunt + Target
+- **Hunt mode:** fires at random unfired cells (same as Easy)
+- **Target mode (triggered on hit):** tracks all "unsunk hits" — hits that belong to ships not yet fully sunk. For each unsunk hit, checks the 4 adjacent cells (up/down/left/right). If any adjacent cell is unfired, fires there
+- Returns to hunt mode once no unsunk hits have unfired neighbors (i.e., the ship was sunk or all adjacent cells are exhausted)
+- Average game length: ~65 shots
+- Simulates a casual player who follows up on hits
+
+#### Hard — Hunt + Parity + Target
+- **Target mode:** identical to Medium — probes adjacent cells of unsunk hits
+- **Hunt mode with parity:** instead of random, only targets cells where `(row + col) % 2 === 0` — a checkerboard pattern. Since the smallest ship is 2 cells long, every ship must occupy at least one cell on each color of the checkerboard. This halves the search space during hunting
+- Falls back to any unfired cell if all parity cells are exhausted
+- Average game length: ~55 shots
+- Simulates a strategic player
+
+#### Expert — Probability Density Map
+- **Target mode:** identical to Medium/Hard — probes adjacent cells of unsunk hits
+- **Hunt mode with probability density:** for every unfired cell, calculates how many valid placements of remaining (unsunk) ships could overlap that cell. This considers:
+  - Each remaining ship's length
+  - Both horizontal and vertical orientations
+  - Whether the placement would cross a known miss (invalid)
+  - The resulting count = "probability density" for that cell
+- Fires at the cell with the highest density score (most likely to contain a ship)
+- Complexity per shot: O(board_size × remaining_ships × max_ship_length) — trivial for 10×10
+- Average game length: ~45 shots
+- Simulates an optimal player using statistical reasoning
 
 ### 3.4 Multiplayer Flow
 - **Room code system** — Player 1 creates a game, gets a 4-character code (e.g. `ABCD`)

@@ -218,13 +218,11 @@ function App() {
           )}
 
           {/* Controls hint */}
-          {phase !== 'menu' && phase !== 'lobby' && (
-            <div className="absolute top-2 right-2 text-gray-500 text-xs bg-black/50 px-3 py-2 rounded flex flex-col gap-0.5">
-              <span>Click on enemy waters to fire</span>
-              <span>Scroll to zoom</span>
-              <span>Hold right click and drag to move camera</span>
-            </div>
-          )}
+          <div className="absolute top-2 right-2 text-gray-500 text-xs bg-black/50 px-3 py-2 rounded flex flex-col gap-0.5">
+            <span>Click on enemy waters to fire</span>
+            <span>Scroll to zoom</span>
+            <span>Hold right click and drag to move camera</span>
+          </div>
         </div>
 
         {phase === 'placement' && <PlacementUI />}

@@ -162,6 +162,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('place-ships', async (data, cb) => {
+    if (socketToPlayer.get(socket.id) !== data.playerId) return cb({ success: false, error: 'Not your session' });
     const game = games.get(data.gameId);
     if (!game) return cb({ success: false, error: 'Game not found' });
 
@@ -183,6 +184,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('fire-shot', async (data, cb) => {
+    if (socketToPlayer.get(socket.id) !== data.playerId) return cb({ success: false, error: 'Not your session' });
     const game = games.get(data.gameId);
     if (!game) return cb({ success: false, error: 'Game not found' });
 

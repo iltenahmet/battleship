@@ -32,6 +32,23 @@ A hybrid approach: event-based messages for gameplay (maps cleanly to animations
 - **Gameplay events:** `create-game`, `join-game`, `place-ships`, `fire-shot` from client; `shot-result`, `opponent-shot`, `turn-change`, `game-over` from server
 - **Reconnection:** Client stores `gameId` + `playerId` in localStorage. On page load, it attempts `reconnect-game` and the server responds with the full client-safe game state, rebuilt from the in-memory game or the database
 
+### Anti-Cheat
+
+The server is the single source of truth. The client is a rendering layer — all mutations go through server validation. Here's every attack vector and how it's handled:
+
+| Attack | How it's prevented |
+|---|---|
+| **Inspect network traffic to see opponent's ships** | Server never sends opponent ship locations. Only hit/miss results and which ship was sunk are transmitted. |
+| **Fire out of turn** | `fireShot()` checks `game.currentTurn !== shooterId` and rejects. |
+| **Fire on the same cell twice** | Server checks `shooter.shots[row][col]` — already-fired cells are rejected. |
+| **Fire out of bounds** | Server validates `row` and `col` are within `[0, BOARD_SIZE)`. |
+| **Place ships that overlap or go out of bounds** | `validatePlacement()` checks bounds, overlap, correct ship names, sizes, and count (exactly 5 ships). |
+| **Place ships after already confirming** | Server checks `player.ready` — once ships are confirmed, placement is locked. |
+| **Spoof another player's identity (stolen playerId)** | Socket handlers check `socketToPlayer.get(socket.id) !== data.playerId` — the socket must be the one that originally registered the playerId via create/join/reconnect. |
+| **Modify local state via browser console** | Client state (Zustand store) is cosmetic. Changing `isMyTurn` locally unlocks the fire button, but the server still rejects the shot. A reconnect restores the true state. |
+| **Remove or undo opponent's shot markers** | No socket event exists for this. The server only accepts forward actions (place, fire). Mutating local state has no server-side effect. |
+| **Send malformed payloads (wrong types, missing fields)** | Game logic functions return error strings for invalid inputs; the server responds with `{ success: false }` and does not mutate state. |
+
 ### State Management
 
 Zustand manages client-side state. Socket event handlers update the store directly, and React components subscribe to specific slices. This keeps 3D components like Water and Lighting from re-rendering when game state changes.

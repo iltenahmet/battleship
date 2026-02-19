@@ -1,6 +1,7 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useCallback } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { useGameStore } from '../store/gameStore';
@@ -50,10 +51,32 @@ function Ocean() {
 
 export default function GameScene() {
   const phase = useGameStore((s) => s.phase);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+
+  const clampTarget = useCallback(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const t = controls.target;
+    const cam = controls.object.position;
+
+    const clampedX = THREE.MathUtils.clamp(t.x, -12, 12);
+    const clampedZ = THREE.MathUtils.clamp(t.z, -8, 8);
+
+    const dx = clampedX - t.x;
+    const dz = clampedZ - t.z;
+
+    if (dx !== 0 || dz !== 0) {
+      t.x = clampedX;
+      t.z = clampedZ;
+      cam.x += dx;
+      cam.z += dz;
+    }
+    t.y = 0;
+  }, []);
 
   return (
     <Canvas
-      camera={{ position: [0, 12, 7], fov: 50 }}
+      camera={{ position: [0, 16, 9], fov: 50 }}
       style={{ width: '100%', height: '100%' }}
     >
       <ambientLight intensity={0.5} />
@@ -61,11 +84,13 @@ export default function GameScene() {
       <directionalLight position={[-3, 8, -3]} intensity={0.3} />
 
       <OrbitControls
+        ref={controlsRef}
         enableRotate={false}
         enablePan={true}
         enableZoom={true}
         minDistance={5}
         maxDistance={25}
+        onChange={clampTarget}
       />
 
       <Ocean />

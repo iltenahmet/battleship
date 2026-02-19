@@ -138,6 +138,44 @@ function App() {
 
   return (
     <div className="w-full h-screen flex flex-col">
+      {/* Game Over popup */}
+      {phase === 'gameOver' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 bg-[#0d1117] border border-gray-700 rounded-2xl px-12 py-10 shadow-2xl">
+            <h2 className={`text-5xl font-bold tracking-wider ${winner === 'you' ? 'text-emerald-400' : 'text-red-400'}`}
+              style={{ textShadow: winner === 'you' ? '0 0 30px rgba(52,211,153,0.4)' : '0 0 30px rgba(248,113,113,0.4)' }}
+            >
+              {winner === 'you' ? 'VICTORY' : 'DEFEAT'}
+            </h2>
+            <p className="text-gray-400 text-sm">
+              {winner === 'you' ? 'You sunk all enemy ships!' : 'Your fleet has been destroyed.'}
+            </p>
+            <div className="flex gap-4">
+              {gameMode === 'ai' && (
+                <button
+                  className="px-6 py-3 bg-emerald-500/15 border border-emerald-500 text-emerald-400 rounded-lg cursor-pointer hover:bg-emerald-500/30 transition-all"
+                  onClick={() => {
+                    goToMenu();
+                    setTimeout(() => {
+                      useGameStore.getState().setGameMode('ai');
+                      useGameStore.getState().startGame();
+                    }, 100);
+                  }}
+                >
+                  Rematch
+                </button>
+              )}
+              <button
+                className="px-6 py-3 bg-cyan-400/10 border border-cyan-400/30 text-cyan-400 rounded-lg cursor-pointer hover:bg-cyan-400/20 transition-all"
+                onClick={goToMenu}
+              >
+                Main Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4 px-4 py-3 bg-black/30 shrink-0">
         <button
@@ -158,7 +196,7 @@ function App() {
           </span>
         )}
 
-        {notification && (
+        {notification && phase !== 'gameOver' && (
           <span className="ml-2 text-sm text-gray-300">{notification}</span>
         )}
       </div>
@@ -178,6 +216,15 @@ function App() {
               </div>
             </>
           )}
+
+          {/* Controls hint */}
+          {phase !== 'menu' && phase !== 'lobby' && (
+            <div className="absolute top-2 right-2 text-gray-500 text-xs bg-black/50 px-3 py-2 rounded flex flex-col gap-0.5">
+              <span>Click on enemy waters to fire</span>
+              <span>Scroll to zoom</span>
+              <span>Hold right click and drag to move camera</span>
+            </div>
+          )}
         </div>
 
         {phase === 'placement' && <PlacementUI />}
@@ -185,36 +232,6 @@ function App() {
         {phase === 'waiting' && (
           <div className="w-[260px] flex items-center justify-center text-gray-500 p-6">
             <p>Waiting for opponent to place ships...</p>
-          </div>
-        )}
-
-        {phase === 'gameOver' && (
-          <div className="w-[260px] flex flex-col items-center justify-center gap-4 p-6">
-            <h3 className={`text-2xl font-bold ${winner === 'you' ? 'text-emerald-400' : 'text-red-400'}`}>
-              {winner === 'you' ? 'VICTORY!' : 'DEFEAT'}
-            </h3>
-            <button
-              className="px-6 py-3 bg-emerald-500/15 border border-emerald-500 text-emerald-400 rounded-lg cursor-pointer hover:bg-emerald-500/30"
-              onClick={() => {
-                // Rematch: reset game state but keep same mode
-                const mode = gameMode;
-                goToMenu();
-                if (mode) {
-                  setTimeout(() => {
-                    useGameStore.getState().setGameMode(mode);
-                    useGameStore.getState().startGame();
-                  }, 100);
-                }
-              }}
-            >
-              Rematch
-            </button>
-            <button
-              className="px-6 py-3 bg-cyan-400/10 border border-cyan-400/30 text-cyan-400 rounded-lg cursor-pointer hover:bg-cyan-400/20"
-              onClick={goToMenu}
-            >
-              Back to Menu
-            </button>
           </div>
         )}
       </div>

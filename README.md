@@ -6,6 +6,20 @@ A full-stack 3D Battleship game with single-player AI (4 difficulty levels) and 
 
 ## Approach
 
+### How I Used AI
+
+I used Claude Code with Claude Opus 4.6 to build. The way I approached this was to generate an [extensive planning document](./PLAN.md) first, where I make all the high level decisions and make sure the spec is really clear. This was the most important part. 
+
+For the planning session, I presented Claude Code the [requirements](./requirements.md) for the project and the specific 3D angle I wanted to take. I already knew that 3JS would be a good fit for this kind of a project, but with Claude's suggestion I explored React Three Fiber (R3F), which is built on top of 3JS. Because of the time limitation, my main consideration here was that it had to be mainstream enough for Claude Code to generate code with as little bugs as possible.
+
+I quickly searched online if I could find pre-made 3D assets that I can use for this project and whether R3F (or additional libraries related to it) had built in support for common 3D operations such as camera controls and ray tracing. Once I was convinced that all of these things had standard implementations with R3F, I was confident that I can rely on Claude Code to generate the logic with minimal issues.
+
+Once the 3D aspect was decided, I asked Claude to ask me each decision one by one, the deployment platform, the database structure, the game design, etc. For each decision, I had a discussion with Claude to understand various tradeoffs. I usually opted for simpler & more generic options so that a) AI would have an easier time implementing and b) it would be easier for me to keep a mental model of the system.
+
+Once the planning document was created, I asked Claude to implement the plan. Here the most important part was to make sure it implements iteratively, where I can check its progress and guide it along the way. I first created a basic menu, and deployed the app on Railway. Then one by one, I created the game board, ability to add ships, ability to play a basic game, the database connection and storing the game state, making sure the game state is preserved when one player disconnects, adding the 3D ship models, and polishing various aspects.
+
+If you look at my commit history, you can see the steps in which the game came alive. In each step, I had a more or less working version, so that if Claude goes in and makes a bunch of changes that messes up existing working code, I can easily revert back. This way it was easier to debug as well, and I could isolate each issue to a specific commit, this made it easier for Claude to debug as well, if something started going wrong, you knew that it had to be some code change between the last working commit and the current one.
+
 ### Architecture
 
 The project is a flat monorepo with three directories:
@@ -91,18 +105,6 @@ Game state survives page refresh via the reconnection flow: localStorage session
 - **Shot processing:** O(1) grid lookup. Sunk detection via hit counter per ship. Win detection via unsunk ship counter
 - **AI complexity:** Hunt+Target is O(1) amortized. Probability density is O(board_size x remaining_ships x max_ship_length) per shot — trivial for 10x10, would need optimization above ~100x100
 - **Network:** Only events for changed cells, not full board state (except on reconnect)
-
-### How I Used AI
-
-I used Claude Code throughout the build. The workflow was:
-
-1. **Planning:** Wrote `PLAN.md` covering architecture, game design, AI algorithms, anti-cheat, and scaling — then used it as a reference document throughout
-2. **Scaffolding:** Generated the initial project structure, Express server, Socket.IO event handlers, and React component skeletons
-3. **Game logic:** Implemented and iterated on placement validation, firing logic, AI algorithms, and the reconnection flow
-4. **3D rendering:** Built the R3F scene, ship model loading/scaling, water shader, coordinate labels, and shot markers
-5. **Debugging:** Used Claude Code to diagnose build errors, path issues, and deployment problems (e.g., the client dist path resolution for Railway)
-
-The key was giving Claude Code strong context through the plan document and iterating in small, testable increments rather than trying to generate everything at once.
 
 ## Running Locally
 

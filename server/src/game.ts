@@ -389,3 +389,71 @@ export function aiPlaceShips(): ShipPlacement[] {
 
   return placed;
 }
+
+// Build client-safe state for a specific player (never leaks opponent ship positions)
+export function getClientState(game: Game, playerId: string) {
+  const player = game.players[playerId];
+  if (!player) return null;
+
+  const opponentId = game.playerOrder.find((id) => id !== playerId);
+
+  // My shots (what I fired at opponent)
+  const myShots: ShotResult[] = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (player.shots[r][c]) {
+        const shot: ShotResult = { row: r, col: c, result: player.shots[r][c] };
+        // Check if this shot sunk a ship
+        if (opponentId && game.players[opponentId]) {
+          for (const ship of game.players[opponentId].ships) {
+            if (ship.hits === ship.length && ship.cells.some(cell => cell.row === r && cell.col === c)) {
+              shot.sunkShip = ship.name;
+            }
+          }
+        }
+        myShots.push(shot);
+      }
+    }
+  }
+
+  // Opponent's shots on me
+  const opponentShots: ShotResult[] = [];
+  if (opponentId && game.players[opponentId]) {
+    const opp = game.players[opponentId];
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (opp.shots[r][c]) {
+          const shot: ShotResult = { row: r, col: c, result: opp.shots[r][c] };
+          for (const ship of player.ships) {
+            if (ship.hits === ship.length && ship.cells.some(cell => cell.row === r && cell.col === c)) {
+              shot.sunkShip = ship.name;
+            }
+          }
+          opponentShots.push(shot);
+        }
+      }
+    }
+  }
+
+  // My ships as placements (for rendering on my board)
+  const myShips = player.ships.map(s => ({
+    name: s.name,
+    length: s.length,
+    row: s.cells[0].row,
+    col: s.cells[0].col,
+    orientation: (s.cells.length > 1 && s.cells[1].row !== s.cells[0].row ? 'vertical' : 'horizontal') as Orientation,
+  }));
+
+  return {
+    gameId: game.id,
+    playerId,
+    phase: game.phase,
+    mode: game.mode,
+    isMyTurn: game.currentTurn === playerId,
+    shipsReady: player.ready,
+    myShips,
+    myShots,
+    opponentShots,
+    winner: game.winner ? (game.winner === playerId ? 'you' : 'opponent') : null,
+  };
+}

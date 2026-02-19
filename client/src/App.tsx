@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from './store/gameStore';
 import type { AIDifficulty } from '../../shared/types';
 import GameScene from './components/GameScene';
@@ -127,6 +127,11 @@ function App() {
   const notification = useGameStore((s) => s.notification);
   const winner = useGameStore((s) => s.winner);
   const goToMenu = useGameStore((s) => s.goToMenu);
+  const tryReconnect = useGameStore((s) => s.tryReconnect);
+
+  useEffect(() => {
+    tryReconnect();
+  }, [tryReconnect]);
 
   if (phase === 'menu') return <MenuScreen />;
   if (phase === 'lobby') return <LobbyScreen />;

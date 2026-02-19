@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore, SHIPS, isValidPlacement } from '../store/gameStore';
+import ShipModel from './Ship3D';
 
 const CELL_SIZE = 1;
 const BOARD_SIZE = 10;
@@ -34,7 +35,7 @@ function GridLines() {
 
   return (
     <lineSegments geometry={geometry}>
-      <lineBasicMaterial color="#1a5276" transparent opacity={0.6} />
+      <lineBasicMaterial color="#4fc3f7" transparent opacity={0.5} />
     </lineSegments>
   );
 }
@@ -90,29 +91,16 @@ function PlacedShips() {
 
   return (
     <>
-      {placedShips.map((ship) => {
-        const cells: { row: number; col: number }[] = [];
-        for (let i = 0; i < ship.length; i++) {
-          const r = ship.orientation === 'vertical' ? ship.row + i : ship.row;
-          const c = ship.orientation === 'horizontal' ? ship.col + i : ship.col;
-          cells.push({ row: r, col: c });
-        }
-
-        // Render as a single elongated box
-        const startPos = cellToWorld(cells[0].row, cells[0].col);
-        const endPos = cellToWorld(cells[cells.length - 1].row, cells[cells.length - 1].col);
-        const cx = (startPos[0] + endPos[0]) / 2;
-        const cz = (startPos[2] + endPos[2]) / 2;
-        const w = ship.orientation === 'horizontal' ? ship.length * CELL_SIZE * 0.85 : CELL_SIZE * 0.5;
-        const d = ship.orientation === 'vertical' ? ship.length * CELL_SIZE * 0.85 : CELL_SIZE * 0.5;
-
-        return (
-          <mesh key={ship.name} position={[cx, 0.15, cz]}>
-            <boxGeometry args={[w, 0.25, d]} />
-            <meshStandardMaterial color="#5d6d7e" />
-          </mesh>
-        );
-      })}
+      {placedShips.map((ship) => (
+        <ShipModel
+          key={ship.name}
+          name={ship.name}
+          length={ship.length}
+          row={ship.row}
+          col={ship.col}
+          orientation={ship.orientation}
+        />
+      ))}
     </>
   );
 }
@@ -209,7 +197,7 @@ export default function Board3D() {
         onClick={handleClick}
       >
         <planeGeometry args={[BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE]} />
-        <meshStandardMaterial color="#0d2137" transparent opacity={0.9} />
+        <meshStandardMaterial color="#000000" transparent opacity={0.5} />
       </mesh>
 
       <GridLines />

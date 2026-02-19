@@ -170,10 +170,10 @@ function App() {
 
           {(phase === 'firing' || phase === 'gameOver') && (
             <>
-              <div className="absolute bottom-4 left-[25%] -translate-x-1/2 text-cyan-400/60 text-sm tracking-wider">
+              <div className="absolute bottom-4 left-[25%] -translate-x-1/2 text-cyan-400 text-sm tracking-wider bg-black/60 px-4 py-1.5 rounded">
                 YOUR FLEET
               </div>
-              <div className="absolute bottom-4 left-[75%] -translate-x-1/2 text-cyan-400/60 text-sm tracking-wider">
+              <div className="absolute bottom-4 left-[75%] -translate-x-1/2 text-cyan-400 text-sm tracking-wider bg-black/60 px-4 py-1.5 rounded">
                 ENEMY WATERS
               </div>
             </>
@@ -193,6 +193,22 @@ function App() {
             <h3 className={`text-2xl font-bold ${winner === 'you' ? 'text-emerald-400' : 'text-red-400'}`}>
               {winner === 'you' ? 'VICTORY!' : 'DEFEAT'}
             </h3>
+            <button
+              className="px-6 py-3 bg-emerald-500/15 border border-emerald-500 text-emerald-400 rounded-lg cursor-pointer hover:bg-emerald-500/30"
+              onClick={() => {
+                // Rematch: reset game state but keep same mode
+                const mode = gameMode;
+                goToMenu();
+                if (mode) {
+                  setTimeout(() => {
+                    useGameStore.getState().setGameMode(mode);
+                    useGameStore.getState().startGame();
+                  }, 100);
+                }
+              }}
+            >
+              Rematch
+            </button>
             <button
               className="px-6 py-3 bg-cyan-400/10 border border-cyan-400/30 text-cyan-400 rounded-lg cursor-pointer hover:bg-cyan-400/20"
               onClick={goToMenu}

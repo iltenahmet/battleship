@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useGLTF, useTexture } from '@react-three/drei';
 import { useGameStore } from '../store/gameStore';
 import type { ShotResult } from '../../../shared/types';
+import ShipModel from './Ship3D';
 
 const CELL_SIZE = 1;
 const BOARD_SIZE = 10;
@@ -33,21 +35,71 @@ function GridLines() {
 
   return (
     <lineSegments geometry={geometry}>
-      <lineBasicMaterial color="#1a5276" transparent opacity={0.6} />
+      <lineBasicMaterial color="#4fc3f7" transparent opacity={0.5} />
     </lineSegments>
   );
 }
 
-function ShotMarker({ shot }: { shot: ShotResult }) {
+function ShotMarker({ shot, raised = false }: { shot: ShotResult; raised?: boolean }) {
   const [x, , z] = cellToWorld(shot.row, shot.col);
-  const color = shot.result === 'hit' ? '#e74c3c' : '#ecf0f1';
+  const isHit = shot.result === 'hit';
+  const modelFile = isHit ? '/models/buoy-flag.glb' : '/models/buoy.glb';
+  const { scene } = useGLTF(modelFile);
+  const colormap = useTexture('/models/colormap.png');
+
+  const clone = useMemo(() => {
+    const c = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(c);
+    const center = new THREE.Vector3();
+    box.getSize(center);
+    const size = Math.max(center.x, center.y, center.z);
+    const scale = 0.6 / size;
+    c.scale.setScalar(scale);
+
+    // Re-center
+    const box2 = new THREE.Box3().setFromObject(c);
+    const mid = new THREE.Vector3();
+    box2.getCenter(mid);
+    c.position.set(-mid.x, -box2.min.y, -mid.z);
+
+    // Apply colormap with original colors
+    colormap.colorSpace = THREE.SRGBColorSpace;
+    colormap.flipY = false;
+    colormap.needsUpdate = true;
+
+    c.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        if (isHit) {
+          child.material = new THREE.MeshStandardMaterial({
+            color: '#1a1a1a',
+            metalness: 0.3,
+            roughness: 0.6,
+          });
+        } else {
+          child.material = new THREE.MeshStandardMaterial({
+            map: colormap,
+            metalness: 0.1,
+            roughness: 0.8,
+          });
+        }
+      }
+    });
+
+    return c;
+  }, [scene, colormap]);
+
+  // On defense board, raise hits above ships so they don't collide
+  const yPos = raised && isHit ? 0.5 : 0.05;
+
   return (
-    <mesh position={[x, 0.15, z]}>
-      <cylinderGeometry args={[0.12, 0.12, 0.3, 8]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
+    <group position={[x, yPos, z]}>
+      <primitive object={clone} />
+    </group>
   );
 }
+
+useGLTF.preload('/models/buoy.glb');
+useGLTF.preload('/models/buoy-flag.glb');
 
 function HoverHighlight() {
   const hoveredCell = useGameStore((s) => s.hoveredCell);
@@ -96,10 +148,20 @@ export function AttackBoard({ offsetX }: { offsetX: number }) {
         onClick={handleClick}
       >
         <planeGeometry args={[BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE]} />
-        <meshStandardMaterial color="#0d2137" transparent opacity={0.9} />
+        <meshStandardMaterial color="#000000" transparent opacity={0.5} />
       </mesh>
       <GridLines />
       <HoverHighlight />
+      {/* Red highlights under hits */}
+      {myShots.filter((s) => s.result === 'hit').map((shot) => {
+        const [hx, hy, hz] = cellToWorld(shot.row, shot.col);
+        return (
+          <mesh key={`hit-${shot.row}-${shot.col}`} position={[hx, hy + 0.005, hz]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[CELL_SIZE * 0.95, CELL_SIZE * 0.95]} />
+            <meshBasicMaterial color="#e74c3c" transparent opacity={0.5} />
+          </mesh>
+        );
+      })}
       {myShots.map((shot) => (
         <ShotMarker key={`${shot.row}-${shot.col}`} shot={shot} />
       ))}
@@ -112,40 +174,50 @@ export function DefenseBoard({ offsetX }: { offsetX: number }) {
   const placedShips = useGameStore((s) => s.placedShips);
   const opponentShots = useGameStore((s) => s.opponentShots);
 
+  // Derive which of my ships are sunk
+  const sunkShipNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const shot of opponentShots) {
+      if (shot.sunkShip) names.add(shot.sunkShip);
+    }
+    return names;
+  }, [opponentShots]);
+
   return (
     <group position={[offsetX, 0, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE]} />
-        <meshStandardMaterial color="#0d2137" transparent opacity={0.9} />
+        <meshStandardMaterial color="#000000" transparent opacity={0.5} />
       </mesh>
       <GridLines />
 
-      {/* Your ships */}
-      {placedShips.map((ship) => {
-        const cells: { row: number; col: number }[] = [];
-        for (let i = 0; i < ship.length; i++) {
-          const r = ship.orientation === 'vertical' ? ship.row + i : ship.row;
-          const c = ship.orientation === 'horizontal' ? ship.col + i : ship.col;
-          cells.push({ row: r, col: c });
-        }
-        const startPos = cellToWorld(cells[0].row, cells[0].col);
-        const endPos = cellToWorld(cells[cells.length - 1].row, cells[cells.length - 1].col);
-        const cx = (startPos[0] + endPos[0]) / 2;
-        const cz = (startPos[2] + endPos[2]) / 2;
-        const w = ship.orientation === 'horizontal' ? ship.length * CELL_SIZE * 0.85 : CELL_SIZE * 0.5;
-        const d = ship.orientation === 'vertical' ? ship.length * CELL_SIZE * 0.85 : CELL_SIZE * 0.5;
+      {/* Your ships with sinking animation */}
+      {placedShips.map((ship) => (
+        <ShipModel
+          key={ship.name}
+          name={ship.name}
+          length={ship.length}
+          row={ship.row}
+          col={ship.col}
+          orientation={ship.orientation}
+          sunk={sunkShipNames.has(ship.name)}
+        />
+      ))}
 
+      {/* Red highlights under enemy hits */}
+      {opponentShots.filter((s) => s.result === 'hit').map((shot) => {
+        const [hx, hy, hz] = cellToWorld(shot.row, shot.col);
         return (
-          <mesh key={ship.name} position={[cx, 0.1, cz]}>
-            <boxGeometry args={[w, 0.2, d]} />
-            <meshStandardMaterial color="#5d6d7e" />
+          <mesh key={`hit-${shot.row}-${shot.col}`} position={[hx, hy + 0.005, hz]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[CELL_SIZE * 0.95, CELL_SIZE * 0.95]} />
+            <meshBasicMaterial color="#e74c3c" transparent opacity={0.5} />
           </mesh>
         );
       })}
 
-      {/* Incoming shots */}
+      {/* Incoming shots — raise hits above ships */}
       {opponentShots.map((shot) => (
-        <ShotMarker key={`${shot.row}-${shot.col}`} shot={shot} />
+        <ShotMarker key={`${shot.row}-${shot.col}`} shot={shot} raised />
       ))}
     </group>
   );
